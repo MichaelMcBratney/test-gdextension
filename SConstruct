@@ -38,7 +38,7 @@ customs = [os.path.abspath(path) for path in customs]
 opts = Variables(customs, ARGUMENTS)
 opts.Add('source_dirs', 'List of source directories (comma-separated)', 'src') # Directory for source files
 opts.Add('source_exts', 'List of source file extensions (comma-separated)', '.cpp,.c,.cc,.cxx') 
-opts.Add('include_dirs', 'List of include directories (comma-separated)', 'src') # Directory for headers - some might want to create a separate include directory
+opts.Add('include_dirs', 'List of include directories (comma-separated)', 'src,godot-cpp/gen/include,godot-cpp/include,godot-cpp/gen/include/godot_cpp/classes,godot-cpp/gen/include/godot_cpp/classes') # Directory for headers - some might want to create a separate include directory
 opts.Add('doc_output_dir', 'Directory for documentation output', 'gen')
 opts.Add('precision', 'Floating-point precision (single or double)', 'single')  # Default to single
 opts.Add('bundle_id_prefix', 'Bundle identifier prefix (reverse-DNS format)', 'com.gdextension')  # Default prefix
@@ -53,9 +53,9 @@ opts.Add(EnumVariable(
 # You can either specify "disabled_classes", OR
 # explicitly specify "enabled_classes" which disables all other classes.
 
-is_2d_profile_used = False
+is_2d_profile_used = True
 is_3d_profile_used = False
-is_custom_profile_used = True
+is_custom_profile_used = False
 if is_2d_profile_used:
     env["build_profile"] = "2d_build_profile.json"
 elif is_3d_profile_used:
@@ -81,14 +81,22 @@ Run the following command to download godot-cpp:
 env = SConscript("godot-cpp/SConstruct", {"env": env, "customs": customs})
 
 # Process GDExtension-specific options
-source_dirs = env['source_dirs'].split(',')   # Convert comma-separated string to list
-source_exts = env['source_exts'].split(',')   # Convert comma-separated string to list
-include_dirs = env['include_dirs'].split(',') # Convert comma-separated string to list
-doc_output_dir = env['doc_output_dir']        # Directory for documentation output
-precision = env.get('precision', 'single')     # Ensure precision defaults to single
-bundle_id_prefix = env.get('bundle_id_prefix', 'com.gdextension')  # Ensure prefix defaults to com.gdextension
+# Process GDExtension-specific options safely
+def ensure_list(value):
+    if isinstance(value, str):
+        return [v.strip() for v in value.split(',')]
+    return value
 
-# Append include directories to CPPPATH
+source_dirs = ensure_list(env['source_dirs'])
+source_exts = ensure_list(env['source_exts'])
+include_dirs = ensure_list(env['include_dirs'])
+
+doc_output_dir = env['doc_output_dir']
+precision = env.get('precision', 'single')
+bundle_id_prefix = env.get('bundle_id_prefix', 'com.gdextension')
+
+# Convert include paths to absolute paths
+include_dirs = [os.path.abspath(p) for p in include_dirs]
 env.Append(CPPPATH=include_dirs)
 
 # Find all .cpp files recursively in the specified source directories
